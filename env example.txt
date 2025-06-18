@@ -1,0 +1,41 @@
+# API Keys
+NVIDIA_BUILD_API_KEY=<enter key here>
+NVIDIA_API_KEY=<enter key here>
+NGC_API_KEY=<enter key here>
+
+# Change default number of cores
+NV_INGEST_MAX_UTIL=6
+
+# Hosted Endpoints Configuration
+PADDLE_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/cv/baidu/paddleocr
+PADDLE_INFER_PROTOCOL=http
+
+YOLOX_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/cv/nvidia/nv-yolox-page-elements-v1
+YOLOX_INFER_PROTOCOL=http
+
+YOLOX_GRAPHIC_ELEMENTS_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-graphic-elements-v1
+YOLOX_GRAPHIC_ELEMENTS_INFER_PROTOCOL=http
+
+YOLOX_TABLE_STRUCTURE_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-table-structure-v1
+YOLOX_TABLE_STRUCTURE_INFER_PROTOCOL=http
+
+# Embedding and NemoRetriever endpoints
+EMBEDDING_NIM_ENDPOINT=https://integrate.api.nvidia.com/v1
+EMBEDDING_NIM_MODEL_NAME=nvidia/llama-3.2-nv-embedqa-1b-v2
+
+NEMORETRIEVER_PARSE_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-parse
+NEMORETRIEVER_PARSE_INFER_PROTOCOL=http
+
+# Vision Language Model for captions
+VLM_CAPTION_ENDPOINT=https://integrate.api.nvidia.com/v1
+VLM_CAPTION_MODEL_NAME=meta/llama-3.2-11b-vision-instruct
+
+# Milvus configuration
+MILVUS_ACCESS_KEY=minioadmin
+MILVUS_SECRET_KEY=minioadmin
+
+# Disable local component health checking since we're using cloud endpoints
+COMPONENTS_TO_READY_CHECK=
+
+# Data directory
+DATASET_ROOT=./data

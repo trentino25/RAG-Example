@@ -1,0 +1,122 @@
+services:
+  redis:
+    image: "redis/redis-stack"
+    ports:
+      - "6379:6379"
+
+  etcd:
+    restart: always
+    container_name: etcd
+    hostname: etcd
+    image: quay.io/coreos/etcd:v3.5.18
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./.volumes/etcd:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    profiles:
+      - retrieval
+
+  minio:
+    restart: always
+    container_name: minio
+    hostname: minio
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    volumes:
+      - ./.volumes/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    profiles:
+      - retrieval
+
+  milvus:
+    restart: always
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.5.3-gpu
+    command: ["milvus", "run", "standalone"]
+    hostname: milvus
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - ./.volumes/milvus:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - etcd
+      - minio
+    profiles:
+      - retrieval
+      
+  nv-ingest-ms-runtime:
+    image: nvcr.io/nvidia/nemo-microservices/nv-ingest:25.4.2
+    volumes:
+      - ${DATASET_ROOT:-./data}:/workspace/data
+    ports:
+      - "7670:7670"
+      - "7671:7671"
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+      - NVIDIA_BUILD_API_KEY=${NVIDIA_BUILD_API_KEY}
+      - CUDA_VISIBLE_DEVICES=-1
+      - MESSAGE_CLIENT_HOST=0.0.0.0
+      - MESSAGE_CLIENT_PORT=7671
+      - MESSAGE_CLIENT_TYPE=simple
+      - SIMPLE_BROKER_PORT=7671
+      - SIMPLE_BROKER_HOST=0.0.0.0
+      - COMPONENTS_TO_READY_CHECK=
+      - INGEST_LOG_LEVEL=DEBUG
+      - PADDLE_HTTP_ENDPOINT=${PADDLE_HTTP_ENDPOINT}
+      - PADDLE_INFER_PROTOCOL=${PADDLE_INFER_PROTOCOL}
+      - YOLOX_HTTP_ENDPOINT=${YOLOX_HTTP_ENDPOINT}
+      - YOLOX_INFER_PROTOCOL=${YOLOX_INFER_PROTOCOL}
+      - YOLOX_GRAPHIC_ELEMENTS_HTTP_ENDPOINT=${YOLOX_GRAPHIC_ELEMENTS_HTTP_ENDPOINT}
+      - YOLOX_GRAPHIC_ELEMENTS_INFER_PROTOCOL=${YOLOX_GRAPHIC_ELEMENTS_INFER_PROTOCOL}
+      - YOLOX_TABLE_STRUCTURE_HTTP_ENDPOINT=${YOLOX_TABLE_STRUCTURE_HTTP_ENDPOINT}
+      - YOLOX_TABLE_STRUCTURE_INFER_PROTOCOL=${YOLOX_TABLE_STRUCTURE_INFER_PROTOCOL}
+      - EMBEDDING_NIM_ENDPOINT=${EMBEDDING_NIM_ENDPOINT}
+      - EMBEDDING_NIM_MODEL_NAME=${EMBEDDING_NIM_MODEL_NAME}
+      - VLM_CAPTION_ENDPOINT=${VLM_CAPTION_ENDPOINT}
+      - VLM_CAPTION_MODEL_NAME=${VLM_CAPTION_MODEL_NAME}
+      - NEMORETRIEVER_PARSE_HTTP_ENDPOINT=${NEMORETRIEVER_PARSE_HTTP_ENDPOINT}
+      - NEMORETRIEVER_PARSE_INFER_PROTOCOL=${NEMORETRIEVER_PARSE_INFER_PROTOCOL}
+      - AUDIO_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/audio/nvidia/speechtotext
+      - AUDIO_INFER_PROTOCOL=http
+      - COMPONENTS_TO_READY_CHECK=
+      - SKIP_AUDIO_EXTRACTION=true
+      - AUDIO_EXTRACTION_ENABLED=false
+    depends_on:
+      - redis
+      - milvus
+
+volumes:
+  etcd_data:
+  minio_data:
+  milvus_data:
