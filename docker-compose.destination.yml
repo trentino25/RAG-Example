@@ -1,0 +1,78 @@
+# docker-compose.destination.yml - Version for destination (i.e., Jetson or CardShark simulation)
+version: '3.8'
+
+networks:
+  destination-network:
+    driver: bridge
+
+services:
+  etcd-dest:
+    container_name: etcd-destination
+    image: quay.io/coreos/etcd:v3.5.18
+    networks:
+      - destination-network
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./destination_volumes/etcd:/etcd
+    command: etcd -advertise-client-urls=http://etcd-dest:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio-dest:
+    container_name: minio-destination
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    networks:
+      - destination-network
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9010:9000"  
+      - "9011:9001"
+    volumes:
+      - ./destination_volumes/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus-dest:
+    container_name: milvus-destination
+    image: milvusdb/milvus:v2.5.3-gpu
+    command: ["milvus", "run", "standalone"]
+    hostname: milvus-dest
+    networks:
+      - destination-network
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd-dest:2379
+      MINIO_ADDRESS: minio-dest:9000
+    volumes:
+      - ./destination_volumes/milvus:/var/lib/milvus
+    ports:
+      - "19540:19530"  
+      - "9101:9091"
+    depends_on:
+      - etcd-dest
+      - minio-dest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  destination_etcd_data:
+  destination_minio_data:
+  destination_milvus_data:
